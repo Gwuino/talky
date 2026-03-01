@@ -66,3 +66,16 @@ export interface VoicePeer {
   muted: boolean;
   deafened: boolean;
 }
+
+export type FriendshipStatus = 'PENDING' | 'ACCEPTED' | 'DECLINED' | 'BLOCKED';
+
+export interface Friendship {
+  id: string;
+  senderId: string;
+  receiverId: string;
+  status: FriendshipStatus;
+  createdAt: string;
+  sender: User;
+  receiver: User;
+  friend?: User;
+}

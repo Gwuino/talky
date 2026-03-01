@@ -1,32 +1,36 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter, useParams } from 'next/navigation';
+import { useRouter, useParams, usePathname } from 'next/navigation';
 import { useDMStore } from '@/stores/dmStore';
 import { useAuthStore } from '@/stores/authStore';
+import { useFriendStore } from '@/stores/friendStore';
 import Avatar from '@/components/ui/Avatar';
 import Input from '@/components/ui/Input';
 import Modal from '@/components/ui/Modal';
-import Button from '@/components/ui/Button';
 import { cn } from '@/lib/utils';
-import { Search, Plus } from 'lucide-react';
+import { Plus, Users } from 'lucide-react';
 import api from '@/lib/api';
 import type { User } from '@/types';
 import UserPanel from './UserPanel';
 
 export default function DMSidebar() {
   const { conversations, fetchConversations, createConversation } = useDMStore();
+  const { incomingRequests, fetchRequests } = useFriendStore();
   const userId = useAuthStore((s) => s.user?.id);
   const router = useRouter();
   const params = useParams();
+  const pathname = usePathname();
   const activeId = params?.conversationId as string;
+  const isFriendsPage = pathname === '/dm/friends';
   const [showNew, setShowNew] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<User[]>([]);
 
   useEffect(() => {
     fetchConversations();
-  }, [fetchConversations]);
+    fetchRequests();
+  }, [fetchConversations, fetchRequests]);
 
   const handleSearch = async (q: string) => {
     setSearchQuery(q);
@@ -52,7 +56,24 @@ export default function DMSidebar() {
         <h2 className="font-semibold text-text-primary">Direct Messages</h2>
       </div>
 
-      <div className="px-2 pt-3 pb-2">
+      <div className="px-2 pt-3 pb-2 space-y-0.5">
+        <button
+          onClick={() => router.push('/dm/friends')}
+          className={cn(
+            'w-full flex items-center gap-2 px-2 py-1.5 rounded text-sm transition-colors',
+            isFriendsPage
+              ? 'bg-bg-active text-text-primary'
+              : 'text-text-secondary hover:bg-bg-hover hover:text-text-primary'
+          )}
+        >
+          <Users size={16} />
+          Friends
+          {incomingRequests.length > 0 && (
+            <span className="ml-auto bg-danger text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
+              {incomingRequests.length}
+            </span>
+          )}
+        </button>
         <button
           onClick={() => setShowNew(true)}
           className="w-full flex items-center gap-2 px-2 py-1.5 rounded text-sm text-text-secondary hover:bg-bg-hover hover:text-text-primary"

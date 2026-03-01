@@ -12,6 +12,13 @@ import { signalingHandler } from './handlers/signaling.handler';
 // Track online users: userId -> Set<socketId>
 export const onlineUsers = new Map<string, Set<string>>();
 
+// Exported io instance for use from services/controllers
+let ioInstance: Server | null = null;
+export function getIO(): Server {
+  if (!ioInstance) throw new Error('Socket.io not initialized');
+  return ioInstance;
+}
+
 export function setupSocket(httpServer: HttpServer) {
   const io = new Server(httpServer, {
     cors: {
@@ -33,6 +40,8 @@ export function setupSocket(httpServer: HttpServer) {
       next(new Error('Invalid token'));
     }
   });
+
+  ioInstance = io;
 
   io.on('connection', async (socket: Socket) => {
     const userId = socket.data.userId;

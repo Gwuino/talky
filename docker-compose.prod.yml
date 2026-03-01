@@ -35,11 +35,21 @@ services:
       args:
         NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
         NEXT_PUBLIC_SOCKET_URL: ${NEXT_PUBLIC_SOCKET_URL}
+        NEXT_PUBLIC_TURN_URL: ${NEXT_PUBLIC_TURN_URL}
+        NEXT_PUBLIC_TURN_USERNAME: ${NEXT_PUBLIC_TURN_USERNAME}
+        NEXT_PUBLIC_TURN_PASSWORD: ${NEXT_PUBLIC_TURN_PASSWORD}
     restart: always
     depends_on:
       - server
     ports:
       - "3000:3000"
+
+  coturn:
+    image: coturn/coturn
+    restart: always
+    network_mode: host
+    volumes:
+      - ./turnserver.conf:/etc/coturn/turnserver.conf
 
 volumes:
   pgdata:
