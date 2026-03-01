@@ -10,8 +10,8 @@ interface MediaControlsProps {
   showVideo?: boolean;
   showScreenShare?: boolean;
   onToggleMute?: (muted: boolean) => void;
-  onToggleVideo?: (enabled: boolean) => Promise<boolean | null | undefined>;
-  onToggleScreenShare?: (enabled: boolean) => Promise<boolean | null | undefined>;
+  onToggleVideo?: (enabled: boolean) => Promise<unknown>;
+  onToggleScreenShare?: (enabled: boolean) => Promise<unknown>;
   onDisconnect?: () => void;
 }
 
