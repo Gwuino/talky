@@ -1,0 +1,22 @@
+{
+  "name": "talky-desktop",
+  "version": "1.0.0",
+  "private": true,
+  "main": "dist/main.js",
+  "scripts": {
+    "dev": "tsc && electron .",
+    "build": "tsc",
+    "electron:dev": "concurrently \"tsc -w\" \"electron .\"",
+    "dist": "tsc && electron-builder",
+    "dist:win": "tsc && electron-builder --win"
+  },
+  "dependencies": {
+    "electron-updater": "^6.3.9"
+  },
+  "devDependencies": {
+    "electron": "^33.3.1",
+    "electron-builder": "^25.1.8",
+    "typescript": "^5.7.3",
+    "concurrently": "^9.1.2"
+  }
+}

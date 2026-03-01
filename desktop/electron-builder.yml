@@ -1,0 +1,43 @@
+appId: com.talky.desktop
+productName: Talky
+copyright: Copyright © 2026 Talky
+
+directories:
+  output: release
+  buildResources: resources
+
+files:
+  - dist/**/*
+  - package.json
+
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
+  icon: resources/icon.ico
+
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: Talky
+
+mac:
+  target:
+    - target: dmg
+      arch:
+        - x64
+        - arm64
+  icon: resources/icon.icns
+  category: public.app-category.social-networking
+
+linux:
+  target:
+    - target: AppImage
+      arch:
+        - x64
+  icon: resources
+  category: Network
