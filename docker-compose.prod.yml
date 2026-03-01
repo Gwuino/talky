@@ -1,0 +1,45 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: always
+    environment:
+      POSTGRES_USER: talky
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: talky
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U talky"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  server:
+    build: ./server
+    restart: always
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: "postgresql://talky:${POSTGRES_PASSWORD}@postgres:5432/talky"
+      JWT_SECRET: ${JWT_SECRET}
+      PORT: "3001"
+      CLIENT_URL: ${CLIENT_URL}
+      MEDIASOUP_ANNOUNCED_IP: ${SERVER_IP}
+    ports:
+      - "3001:3001"
+
+  client:
+    build:
+      context: ./client
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
+        NEXT_PUBLIC_SOCKET_URL: ${NEXT_PUBLIC_SOCKET_URL}
+    restart: always
+    depends_on:
+      - server
+    ports:
+      - "3000:3000"
+
+volumes:
+  pgdata:
