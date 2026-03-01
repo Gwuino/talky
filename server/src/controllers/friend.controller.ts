@@ -21,7 +21,7 @@ export async function sendRequest(req: AuthRequest, res: Response, next: NextFun
 
 export async function acceptRequest(req: AuthRequest, res: Response, next: NextFunction) {
   try {
-    const friendship = await friendService.acceptRequest(req.params.friendshipId, req.userId!);
+    const friendship = await friendService.acceptRequest(req.params.friendshipId as string, req.userId!);
     emitToUser(friendship.senderId, 'friend:request-accepted', friendship);
     res.json(friendship);
   } catch (err) { next(err); }
@@ -29,14 +29,14 @@ export async function acceptRequest(req: AuthRequest, res: Response, next: NextF
 
 export async function declineRequest(req: AuthRequest, res: Response, next: NextFunction) {
   try {
-    const friendship = await friendService.declineRequest(req.params.friendshipId, req.userId!);
+    const friendship = await friendService.declineRequest(req.params.friendshipId as string, req.userId!);
     res.json(friendship);
   } catch (err) { next(err); }
 }
 
 export async function removeFriend(req: AuthRequest, res: Response, next: NextFunction) {
   try {
-    const friendship = await friendService.removeFriend(req.params.friendshipId, req.userId!);
+    const friendship = await friendService.removeFriend(req.params.friendshipId as string, req.userId!);
     const otherId = friendship.senderId === req.userId! ? friendship.receiverId : friendship.senderId;
     emitToUser(otherId, 'friend:removed', { friendshipId: friendship.id, userId: req.userId });
     res.json(friendship);
@@ -45,8 +45,8 @@ export async function removeFriend(req: AuthRequest, res: Response, next: NextFu
 
 export async function blockUser(req: AuthRequest, res: Response, next: NextFunction) {
   try {
-    const friendship = await friendService.blockUser(req.userId!, req.params.userId);
-    emitToUser(req.params.userId, 'friend:removed', { friendshipId: friendship.id, userId: req.userId });
+    const friendship = await friendService.blockUser(req.userId!, req.params.userId as string);
+    emitToUser(req.params.userId as string, 'friend:removed', { friendshipId: friendship.id, userId: req.userId });
     res.json(friendship);
   } catch (err) { next(err); }
 }
