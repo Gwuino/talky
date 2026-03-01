@@ -56,7 +56,7 @@ export function voiceHandler(io: Server, socket: Socket) {
     // Send existing participants to the new user
     const participants = Array.from(voiceChannels.get(channelId)!.entries())
       .filter(([uid]) => uid !== userId)
-      .map(([uid, state]) => ({ userId: uid, username: state.username, ...state }));
+      .map(([uid, state]) => ({ userId: uid, username: state.username, socketId: state.socketId, muted: state.muted, deafened: state.deafened }));
     socket.emit('voice:participants', { channelId, participants });
 
     // Notify others in the voice room
