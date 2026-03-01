@@ -6,6 +6,7 @@ let tray: Tray | null = null;
 let isQuitting = false;
 
 const DEV_URL = 'http://localhost:3000';
+const PROD_URL = process.env.TALKY_URL || 'http://148.253.211.224:3000';
 const isProd = !process.env.ELECTRON_DEV;
 
 function createWindow() {
@@ -25,12 +26,8 @@ function createWindow() {
   });
 
   // Load the app
-  if (isProd) {
-    // In production, load the exported Next.js static files
-    mainWindow.loadFile(path.join(__dirname, '..', 'renderer', 'index.html'));
-  } else {
-    mainWindow.loadURL(DEV_URL);
-  }
+  const url = isProd ? PROD_URL : DEV_URL;
+  mainWindow.loadURL(url);
 
   // Show window when ready
   mainWindow.once('ready-to-show', () => {
