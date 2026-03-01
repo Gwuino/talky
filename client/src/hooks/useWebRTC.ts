@@ -2,6 +2,7 @@
 
 import { useRef, useCallback, useEffect } from 'react';
 import { getSocket } from '@/lib/socket';
+import { useSettingsStore } from '@/stores/settingsStore';
 
 const ICE_SERVERS: RTCConfiguration = {
   iceServers: [
@@ -140,7 +141,18 @@ export function useWebRTC({ channelId, onRemoteStream, onRemoteStreamRemoved }: 
   // Get user media (microphone, optionally camera)
   const startMedia = useCallback(async (options: { audio?: boolean; video?: boolean } = { audio: true }) => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia(options);
+      const { audioInputId, videoInputId } = useSettingsStore.getState();
+
+      const constraints: MediaStreamConstraints = {
+        audio: options.audio !== false
+          ? (audioInputId ? { deviceId: { exact: audioInputId } } : true)
+          : false,
+        video: options.video
+          ? (videoInputId ? { deviceId: { exact: videoInputId } } : true)
+          : false,
+      };
+
+      const stream = await navigator.mediaDevices.getUserMedia(constraints);
       localStreamRef.current = stream;
 
       // Add tracks to all existing peer connections
@@ -180,7 +192,9 @@ export function useWebRTC({ channelId, onRemoteStream, onRemoteStreamRemoved }: 
   const toggleVideo = useCallback(async (enabled: boolean) => {
     if (enabled) {
       try {
-        const videoStream = await navigator.mediaDevices.getUserMedia({ video: true });
+        const { videoInputId } = useSettingsStore.getState();
+        const videoConstraints = videoInputId ? { deviceId: { exact: videoInputId } } : true;
+        const videoStream = await navigator.mediaDevices.getUserMedia({ video: videoConstraints });
         const videoTrack = videoStream.getVideoTracks()[0];
 
         // Add video track to local stream

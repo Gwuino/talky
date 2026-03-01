@@ -1,15 +1,18 @@
 'use client';
 
+import { useState } from 'react';
 import { useAuthStore } from '@/stores/authStore';
 import { useVoiceStore } from '@/stores/voiceStore';
 import Avatar from '@/components/ui/Avatar';
-import { Mic, MicOff, Headphones, HeadphoneOff, PhoneOff } from 'lucide-react';
+import { Mic, MicOff, Headphones, HeadphoneOff, PhoneOff, Settings } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { getSocket } from '@/lib/socket';
+import SettingsModal from '@/components/settings/SettingsModal';
 
 export default function UserPanel() {
   const user = useAuthStore((s) => s.user);
   const { isMuted, isDeafened, connectedChannelId, setMuted, setDeafened, reset } = useVoiceStore();
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   if (!user) return null;
 
@@ -50,7 +53,15 @@ export default function UserPanel() {
             <PhoneOff size={18} />
           </button>
         )}
+        <button
+          onClick={() => setSettingsOpen(true)}
+          className="p-1.5 rounded hover:bg-bg-hover text-text-muted hover:text-text-primary"
+          title="Settings"
+        >
+          <Settings size={18} />
+        </button>
       </div>
+      <SettingsModal isOpen={settingsOpen} onClose={() => setSettingsOpen(false)} />
     </div>
   );
 }

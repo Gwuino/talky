@@ -5,6 +5,7 @@ import { useParams } from 'next/navigation';
 import { useServerStore } from '@/stores/serverStore';
 import { useMessageStore } from '@/stores/messageStore';
 import { useVoiceStore } from '@/stores/voiceStore';
+import { useSettingsStore } from '@/stores/settingsStore';
 import { useVoice } from '@/hooks/useVoice';
 import { getSocket } from '@/lib/socket';
 import ChatHeader from '@/components/chat/ChatHeader';
@@ -38,6 +39,8 @@ export default function ChannelPage() {
   // Refs for remote audio elements
   const audioRefs = useRef<Map<string, HTMLAudioElement>>(new Map());
 
+  const audioOutputId = useSettingsStore((s) => s.audioOutputId);
+
   // Attach remote audio streams
   useEffect(() => {
     remoteStreams.forEach((stream, userId) => {
@@ -50,6 +53,10 @@ export default function ChannelPage() {
       if (audio.srcObject !== stream) {
         audio.srcObject = stream;
       }
+      // Set audio output device if supported and selected
+      if (audioOutputId && typeof audio.setSinkId === 'function') {
+        audio.setSinkId(audioOutputId).catch(() => {});
+      }
     });
 
     // Cleanup removed streams
@@ -59,7 +66,7 @@ export default function ChannelPage() {
         audioRefs.current.delete(userId);
       }
     });
-  }, [remoteStreams]);
+  }, [remoteStreams, audioOutputId]);
 
   // Socket events for chat
   useEffect(() => {
