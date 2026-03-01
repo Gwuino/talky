@@ -9,35 +9,72 @@ interface MediaControlsProps {
   channelId: string;
   showVideo?: boolean;
   showScreenShare?: boolean;
+  onToggleMute?: (muted: boolean) => void;
+  onToggleVideo?: (enabled: boolean) => Promise<boolean | null | undefined>;
+  onToggleScreenShare?: (enabled: boolean) => Promise<boolean | null | undefined>;
+  onDisconnect?: () => void;
 }
 
-export default function MediaControls({ channelId, showVideo = true, showScreenShare = true }: MediaControlsProps) {
-  const { isMuted, isDeafened, isVideoOn, isScreenSharing, setMuted, setDeafened, setVideoOn, setScreenSharing, reset } = useVoiceStore();
+export default function MediaControls({
+  channelId,
+  showVideo = true,
+  showScreenShare = true,
+  onToggleMute,
+  onToggleVideo,
+  onToggleScreenShare,
+  onDisconnect,
+}: MediaControlsProps) {
+  const { isMuted, isDeafened, isVideoOn, isScreenSharing, setMuted, setDeafened, setVideoOn, setScreenSharing } = useVoiceStore();
   const socket = getSocket();
 
   const toggleMute = () => {
     const newMuted = !isMuted;
     setMuted(newMuted);
     socket?.emit('voice:mute', { channelId, muted: newMuted });
+    // Actually toggle the audio track
+    onToggleMute?.(newMuted);
   };
 
   const toggleDeafen = () => {
     const newDeafened = !isDeafened;
     setDeafened(newDeafened);
     socket?.emit('voice:deafen', { channelId, deafened: newDeafened });
+    // When deafening, also mute the mic
+    if (newDeafened) {
+      onToggleMute?.(true);
+    } else if (!isMuted) {
+      // When undeafening, unmute if wasn't manually muted
+      onToggleMute?.(false);
+    }
   };
 
-  const toggleVideo = () => {
-    setVideoOn(!isVideoOn);
+  const toggleVideo = async () => {
+    const newVideoOn = !isVideoOn;
+    if (onToggleVideo) {
+      await onToggleVideo(newVideoOn);
+    }
+    setVideoOn(newVideoOn);
   };
 
-  const toggleScreenShare = () => {
-    setScreenSharing(!isScreenSharing);
+  const toggleScreenShare = async () => {
+    const newScreenSharing = !isScreenSharing;
+    if (onToggleScreenShare) {
+      const success = await onToggleScreenShare(newScreenSharing);
+      if (success !== false) {
+        setScreenSharing(newScreenSharing);
+      }
+    } else {
+      setScreenSharing(newScreenSharing);
+    }
   };
 
   const disconnect = () => {
-    socket?.emit('voice:leave', { channelId });
-    reset();
+    if (onDisconnect) {
+      onDisconnect();
+    } else {
+      socket?.emit('voice:leave', { channelId });
+      useVoiceStore.getState().reset();
+    }
   };
 
   return (

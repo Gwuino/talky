@@ -9,6 +9,7 @@ interface VoiceState {
   isVideoOn: boolean;
   isScreenSharing: boolean;
   localStream: MediaStream | null;
+  _disconnectFn: (() => void) | null;
   setConnectedChannel: (channelId: string | null) => void;
   setPeers: (peers: VoicePeer[]) => void;
   addPeer: (peer: VoicePeer) => void;
@@ -19,10 +20,12 @@ interface VoiceState {
   setVideoOn: (on: boolean) => void;
   setScreenSharing: (sharing: boolean) => void;
   setLocalStream: (stream: MediaStream | null) => void;
+  setDisconnectFn: (fn: (() => void) | null) => void;
+  disconnect: () => void;
   reset: () => void;
 }
 
-export const useVoiceStore = create<VoiceState>((set) => ({
+export const useVoiceStore = create<VoiceState>((set, get) => ({
   connectedChannelId: null,
   peers: [],
   isMuted: false,
@@ -30,6 +33,7 @@ export const useVoiceStore = create<VoiceState>((set) => ({
   isVideoOn: false,
   isScreenSharing: false,
   localStream: null,
+  _disconnectFn: null,
 
   setConnectedChannel: (channelId) => set({ connectedChannelId: channelId }),
   setPeers: (peers) => set({ peers }),
@@ -44,6 +48,11 @@ export const useVoiceStore = create<VoiceState>((set) => ({
   setVideoOn: (on) => set({ isVideoOn: on }),
   setScreenSharing: (sharing) => set({ isScreenSharing: sharing }),
   setLocalStream: (stream) => set({ localStream: stream }),
+  setDisconnectFn: (fn) => set({ _disconnectFn: fn }),
+  disconnect: () => {
+    const fn = get()._disconnectFn;
+    if (fn) fn();
+  },
   reset: () =>
     set({
       connectedChannelId: null,
@@ -53,5 +62,6 @@ export const useVoiceStore = create<VoiceState>((set) => ({
       isVideoOn: false,
       isScreenSharing: false,
       localStream: null,
+      _disconnectFn: null,
     }),
 }));

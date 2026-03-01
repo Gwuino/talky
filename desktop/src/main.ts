@@ -1,5 +1,11 @@
-import { app, BrowserWindow, Tray, Menu, nativeImage, shell, ipcMain, Notification } from 'electron';
+import { app, BrowserWindow, Tray, Menu, nativeImage, shell, ipcMain, Notification, session } from 'electron';
 import path from 'path';
+
+// Auto-grant media permissions (microphone, camera, screen share)
+app.commandLine.appendSwitch('use-fake-ui-for-media-stream');
+app.commandLine.appendSwitch('enable-usermedia-screen-capturing');
+// Treat HTTP origin as secure so getUserMedia/enumerateDevices work
+app.commandLine.appendSwitch('unsafely-treat-insecure-origin-as-secure', 'http://148.253.211.224:3000');
 
 let mainWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
@@ -22,6 +28,8 @@ function createWindow() {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
       nodeIntegration: false,
+      // Enable media features for voice/video
+      webSecurity: false,
     },
   });
 
@@ -125,6 +133,20 @@ if (!gotTheLock) {
 }
 
 app.on('ready', () => {
+  // Grant all media permissions (microphone, camera, screen share)
+  session.defaultSession.setPermissionRequestHandler((_webContents, permission, callback) => {
+    callback(true);
+  });
+
+  session.defaultSession.setPermissionCheckHandler(() => {
+    return true;
+  });
+
+  // Grant access to all media devices (microphone, camera, speakers)
+  session.defaultSession.setDevicePermissionHandler(() => {
+    return true;
+  });
+
   createWindow();
   createTray();
 });

@@ -5,6 +5,7 @@ import { useParams } from 'next/navigation';
 import { useServerStore } from '@/stores/serverStore';
 import { useMessageStore } from '@/stores/messageStore';
 import { useVoiceStore } from '@/stores/voiceStore';
+import { useAuthStore } from '@/stores/authStore';
 import { useSettingsStore } from '@/stores/settingsStore';
 import { useVoice } from '@/hooks/useVoice';
 import { getSocket } from '@/lib/socket';
@@ -24,7 +25,8 @@ export default function ChannelPage() {
   const channels = useServerStore((s) => s.channels);
   const members = useServerStore((s) => s.members);
   const { messages, hasMore, isLoading, fetchMessages, loadMore, addMessage } = useMessageStore();
-  const { connectedChannelId, peers, setPeers, addPeer, removePeer, updatePeer } = useVoiceStore();
+  const { connectedChannelId, peers, isMuted, isDeafened, setPeers, addPeer, removePeer, updatePeer } = useVoiceStore();
+  const currentUser = useAuthStore((s) => s.user);
   const [showMembers, setShowMembers] = useState(true);
   const [onlineUserIds, setOnlineUserIds] = useState<Set<string>>(new Set());
 
@@ -33,8 +35,8 @@ export default function ChannelPage() {
   const isVoiceChannel = channel?.type === 'VOICE';
   const isConnectedToThisVoice = connectedChannelId === channelId;
 
-  // Voice hook
-  const { remoteStreams, joinVoice, leaveVoice } = useVoice(channelId);
+  // Voice hook - get ALL control functions
+  const { remoteStreams, joinVoice, leaveVoice, toggleMute, toggleVideo, toggleScreenShare } = useVoice(channelId);
 
   // Refs for remote audio elements
   const audioRefs = useRef<Map<string, HTMLAudioElement>>(new Map());
@@ -222,6 +224,25 @@ export default function ChannelPage() {
               ) : (
                 <div className="w-full max-w-2xl">
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-8">
+                    {/* Show current user */}
+                    {currentUser && (
+                      <div className="flex flex-col items-center gap-2 p-4 bg-bg-secondary rounded-lg ring-1 ring-accent/30">
+                        <div className="relative">
+                          <Avatar src={currentUser.avatarUrl} name={currentUser.displayName} size="lg" />
+                          {!isMuted && (
+                            <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-success rounded-full flex items-center justify-center">
+                              <div className="w-2 h-2 bg-white rounded-full animate-pulse" />
+                            </div>
+                          )}
+                        </div>
+                        <p className="text-sm text-text-primary font-medium">{currentUser.displayName} <span className="text-text-muted text-xs">(you)</span></p>
+                        <div className="flex gap-1 text-xs text-text-muted">
+                          {isMuted && <span className="text-danger">Muted</span>}
+                          {isDeafened && <span className="text-danger">Deafened</span>}
+                        </div>
+                      </div>
+                    )}
+                    {/* Show remote peers */}
                     {peers.map((peer) => (
                       <div key={peer.userId} className="flex flex-col items-center gap-2 p-4 bg-bg-secondary rounded-lg">
                         <div className="relative">
@@ -240,7 +261,13 @@ export default function ChannelPage() {
                       </div>
                     ))}
                   </div>
-                  <MediaControls channelId={channelId} />
+                  <MediaControls
+                    channelId={channelId}
+                    onToggleMute={toggleMute}
+                    onToggleVideo={toggleVideo}
+                    onToggleScreenShare={toggleScreenShare}
+                    onDisconnect={leaveVoice}
+                  />
                 </div>
               )}
             </div>

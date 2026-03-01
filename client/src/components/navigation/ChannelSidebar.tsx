@@ -1,18 +1,22 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { useServerStore } from '@/stores/serverStore';
 import { useVoiceStore } from '@/stores/voiceStore';
+import { getSocket } from '@/lib/socket';
 import { Hash, Volume2, Plus, Settings, Copy, ChevronDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import Modal from '@/components/ui/Modal';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
+import Avatar from '@/components/ui/Avatar';
 import UserPanel from './UserPanel';
 import VoiceStatusBar from '@/components/media/VoiceStatusBar';
 import api from '@/lib/api';
 import toast from 'react-hot-toast';
+
+type VoiceUser = { userId: string; username: string };
 
 export default function ChannelSidebar() {
   const { activeServer, channels, fetchServer, createChannel } = useServerStore();
@@ -26,10 +30,43 @@ export default function ChannelSidebar() {
   const [newChannelName, setNewChannelName] = useState('');
   const [newChannelType, setNewChannelType] = useState<'TEXT' | 'VOICE'>('TEXT');
   const [inviteCode, setInviteCode] = useState('');
+  const [channelUsers, setChannelUsers] = useState<Record<string, VoiceUser[]>>({});
 
   useEffect(() => {
     if (serverId) fetchServer(serverId);
   }, [serverId, fetchServer]);
+
+  // Fetch voice participants for all voice channels and listen for updates
+  useEffect(() => {
+    const socket = getSocket();
+    if (!socket || !channels.length) return;
+
+    const voiceChannelIds = channels.filter((c) => c.type === 'VOICE').map((c) => c.id);
+    if (voiceChannelIds.length === 0) return;
+
+    // Request current voice users
+    socket.emit('voice:get-channel-users', { channelIds: voiceChannelIds }, (data: Record<string, VoiceUser[]>) => {
+      if (data) setChannelUsers(data);
+    });
+
+    // Listen for real-time updates
+    const handleChannelUpdate = ({ channelId: chId, users }: { channelId: string; users: VoiceUser[] }) => {
+      setChannelUsers((prev) => {
+        const next = { ...prev };
+        if (users.length > 0) {
+          next[chId] = users;
+        } else {
+          delete next[chId];
+        }
+        return next;
+      });
+    };
+
+    socket.on('voice:channel-update', handleChannelUpdate);
+    return () => {
+      socket.off('voice:channel-update', handleChannelUpdate);
+    };
+  }, [channels]);
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -102,22 +139,37 @@ export default function ChannelSidebar() {
               <Plus size={16} />
             </button>
           </div>
-          {voiceChannels.map((channel) => (
-            <button
-              key={channel.id}
-              onClick={() => router.push(`/servers/${serverId}/channels/${channel.id}`)}
-              className={cn(
-                'w-full flex items-center gap-1.5 px-2 py-1.5 rounded text-sm transition-colors',
-                channelId === channel.id
-                  ? 'bg-bg-active text-text-primary'
-                  : 'text-text-secondary hover:bg-bg-hover hover:text-text-primary',
-                connectedChannelId === channel.id && 'text-success'
-              )}
-            >
-              <Volume2 size={18} className="shrink-0" />
-              <span className="truncate">{channel.name}</span>
-            </button>
-          ))}
+          {voiceChannels.map((channel) => {
+            const users = channelUsers[channel.id] || [];
+            return (
+              <div key={channel.id}>
+                <button
+                  onClick={() => router.push(`/servers/${serverId}/channels/${channel.id}`)}
+                  className={cn(
+                    'w-full flex items-center gap-1.5 px-2 py-1.5 rounded text-sm transition-colors',
+                    channelId === channel.id
+                      ? 'bg-bg-active text-text-primary'
+                      : 'text-text-secondary hover:bg-bg-hover hover:text-text-primary',
+                    connectedChannelId === channel.id && 'text-success'
+                  )}
+                >
+                  <Volume2 size={18} className="shrink-0" />
+                  <span className="truncate">{channel.name}</span>
+                </button>
+                {/* Voice channel participants */}
+                {users.length > 0 && (
+                  <div className="ml-4 pl-3 border-l border-border/30 space-y-0.5 py-0.5">
+                    {users.map((user) => (
+                      <div key={user.userId} className="flex items-center gap-2 px-2 py-1 text-xs text-text-secondary">
+                        <Avatar name={user.username} size="sm" className="!w-5 !h-5 !text-[8px]" />
+                        <span className="truncate">{user.username}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       </div>
 

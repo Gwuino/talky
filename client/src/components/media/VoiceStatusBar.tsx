@@ -6,7 +6,7 @@ import { PhoneOff, Signal } from 'lucide-react';
 import { getSocket } from '@/lib/socket';
 
 export default function VoiceStatusBar() {
-  const { connectedChannelId, reset } = useVoiceStore();
+  const { connectedChannelId, localStream, reset } = useVoiceStore();
   const channels = useServerStore((s) => s.channels);
   const channel = channels.find((c) => c.id === connectedChannelId);
 
@@ -16,6 +16,10 @@ export default function VoiceStatusBar() {
     const socket = getSocket();
     if (socket) {
       socket.emit('voice:leave', { channelId: connectedChannelId });
+    }
+    // Stop local media tracks
+    if (localStream) {
+      localStream.getTracks().forEach((t) => t.stop());
     }
     reset();
   };

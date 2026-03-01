@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import Modal from '@/components/ui/Modal';
 import { useSettingsStore } from '@/stores/settingsStore';
 import { Mic, Volume2, Video } from 'lucide-react';
@@ -20,6 +20,10 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   const [audioInputs, setAudioInputs] = useState<DeviceInfo[]>([]);
   const [audioOutputs, setAudioOutputs] = useState<DeviceInfo[]>([]);
   const [videoInputs, setVideoInputs] = useState<DeviceInfo[]>([]);
+  const [micLevel, setMicLevel] = useState(0);
+  const [isTesting, setIsTesting] = useState(false);
+  const testStreamRef = useRef<MediaStream | null>(null);
+  const animFrameRef = useRef<number>(0);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -61,6 +65,58 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
     loadDevices();
   }, [isOpen]);
 
+  const stopMicTest = useCallback(() => {
+    if (testStreamRef.current) {
+      testStreamRef.current.getTracks().forEach((t) => t.stop());
+      testStreamRef.current = null;
+    }
+    if (animFrameRef.current) {
+      cancelAnimationFrame(animFrameRef.current);
+      animFrameRef.current = 0;
+    }
+    setMicLevel(0);
+    setIsTesting(false);
+  }, []);
+
+  const startMicTest = useCallback(async () => {
+    stopMicTest();
+    try {
+      const constraints: MediaStreamConstraints = {
+        audio: audioInputId ? { deviceId: { exact: audioInputId } } : true,
+      };
+      const stream = await navigator.mediaDevices.getUserMedia(constraints);
+      testStreamRef.current = stream;
+      setIsTesting(true);
+
+      const audioContext = new AudioContext();
+      const source = audioContext.createMediaStreamSource(stream);
+      const analyser = audioContext.createAnalyser();
+      analyser.fftSize = 256;
+      source.connect(analyser);
+
+      const dataArray = new Uint8Array(analyser.frequencyBinCount);
+
+      const tick = () => {
+        if (!testStreamRef.current) return;
+        analyser.getByteFrequencyData(dataArray);
+        const avg = dataArray.reduce((a, b) => a + b, 0) / dataArray.length;
+        setMicLevel(Math.min(100, Math.round((avg / 128) * 100)));
+        animFrameRef.current = requestAnimationFrame(tick);
+      };
+      tick();
+    } catch (err) {
+      console.error('Mic test failed:', err);
+      setIsTesting(false);
+    }
+  }, [audioInputId, stopMicTest]);
+
+  // Cleanup on close
+  useEffect(() => {
+    if (!isOpen) {
+      stopMicTest();
+    }
+  }, [isOpen, stopMicTest]);
+
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Settings">
       <div className="space-y-5">
@@ -79,6 +135,23 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
               <option key={d.deviceId} value={d.deviceId}>{d.label}</option>
             ))}
           </select>
+          {/* Mic test */}
+          <div className="mt-2 flex items-center gap-2">
+            <button
+              onClick={isTesting ? stopMicTest : startMicTest}
+              className="text-xs px-3 py-1.5 rounded bg-bg-tertiary border border-border text-text-secondary hover:text-text-primary hover:border-accent transition-colors"
+            >
+              {isTesting ? 'Stop Test' : 'Test Mic'}
+            </button>
+            {isTesting && (
+              <div className="flex-1 h-2 bg-bg-tertiary rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-success rounded-full transition-all duration-75"
+                  style={{ width: `${micLevel}%` }}
+                />
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Speakers */}
