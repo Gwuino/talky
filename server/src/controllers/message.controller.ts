@@ -1,33 +1,27 @@
-import { Response, NextFunction } from 'express';
+import { Response } from 'express';
 import { AuthRequest } from '../middleware/auth';
 import * as messageService from '../services/message.service';
+import { asyncHandler } from '../utils/asyncHandler';
+import { getAuthUserId } from '../utils/getAuthUserId';
 
-export async function getMessages(req: AuthRequest, res: Response, next: NextFunction) {
-  try {
-    const cursor = req.query.cursor as string | undefined;
-    const limit = parseInt(req.query.limit as string) || 50;
-    const result = await messageService.getMessages(req.params.channelId as string, req.userId!, cursor, limit);
-    res.json(result);
-  } catch (err) { next(err); }
-}
+export const getMessages = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const cursor = req.query.cursor as string | undefined;
+  const limit = Math.min(parseInt(req.query.limit as string) || 50, 100);
+  const result = await messageService.getMessages(req.params.channelId as string, getAuthUserId(req), cursor, limit);
+  res.json(result);
+});
 
-export async function create(req: AuthRequest, res: Response, next: NextFunction) {
-  try {
-    const message = await messageService.createMessage(req.params.channelId as string, req.userId!, req.body.content);
-    res.status(201).json(message);
-  } catch (err) { next(err); }
-}
+export const create = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const message = await messageService.createMessage(req.params.channelId as string, getAuthUserId(req), req.body.content);
+  res.status(201).json(message);
+});
 
-export async function update(req: AuthRequest, res: Response, next: NextFunction) {
-  try {
-    const message = await messageService.updateMessage(req.params.messageId as string, req.userId!, req.body.content);
-    res.json(message);
-  } catch (err) { next(err); }
-}
+export const update = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const message = await messageService.updateMessage(req.params.messageId as string, getAuthUserId(req), req.body.content);
+  res.json(message);
+});
 
-export async function remove(req: AuthRequest, res: Response, next: NextFunction) {
-  try {
-    const result = await messageService.deleteMessage(req.params.messageId as string, req.userId!);
-    res.json(result);
-  } catch (err) { next(err); }
-}
+export const remove = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const result = await messageService.deleteMessage(req.params.messageId as string, getAuthUserId(req));
+  res.status(204).send();
+});

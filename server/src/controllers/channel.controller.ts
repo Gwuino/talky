@@ -1,31 +1,25 @@
-import { Response, NextFunction } from 'express';
+import { Response } from 'express';
 import { AuthRequest } from '../middleware/auth';
 import * as channelService from '../services/channel.service';
+import { asyncHandler } from '../utils/asyncHandler';
+import { getAuthUserId } from '../utils/getAuthUserId';
 
-export async function getChannels(req: AuthRequest, res: Response, next: NextFunction) {
-  try {
-    const channels = await channelService.getChannels(req.params.serverId as string, req.userId!);
-    res.json(channels);
-  } catch (err) { next(err); }
-}
+export const getChannels = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const channels = await channelService.getChannels(req.params.serverId as string, getAuthUserId(req));
+  res.json(channels);
+});
 
-export async function create(req: AuthRequest, res: Response, next: NextFunction) {
-  try {
-    const channel = await channelService.createChannel(req.params.serverId as string, req.userId!, req.body.name, req.body.type);
-    res.status(201).json(channel);
-  } catch (err) { next(err); }
-}
+export const create = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const channel = await channelService.createChannel(req.params.serverId as string, getAuthUserId(req), req.body.name, req.body.type);
+  res.status(201).json(channel);
+});
 
-export async function update(req: AuthRequest, res: Response, next: NextFunction) {
-  try {
-    const channel = await channelService.updateChannel(req.params.channelId as string, req.userId!, req.body);
-    res.json(channel);
-  } catch (err) { next(err); }
-}
+export const update = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const channel = await channelService.updateChannel(req.params.channelId as string, getAuthUserId(req), req.body);
+  res.json(channel);
+});
 
-export async function remove(req: AuthRequest, res: Response, next: NextFunction) {
-  try {
-    await channelService.deleteChannel(req.params.channelId as string, req.userId!);
-    res.status(204).send();
-  } catch (err) { next(err); }
-}
+export const remove = asyncHandler(async (req: AuthRequest, res: Response) => {
+  await channelService.deleteChannel(req.params.channelId as string, getAuthUserId(req));
+  res.status(204).send();
+});

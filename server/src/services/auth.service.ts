@@ -1,7 +1,8 @@
+import { Prisma } from '@prisma/client';
 import prisma from '../config/database';
 import { hashPassword, comparePassword } from '../utils/password';
 import { signToken } from '../utils/jwt';
-import { BadRequestError, UnauthorizedError } from '../utils/errors';
+import { BadRequestError, NotFoundError, UnauthorizedError } from '../utils/errors';
 
 interface RegisterInput {
   username: string;
@@ -15,23 +16,26 @@ interface LoginInput {
 }
 
 export async function register(input: RegisterInput) {
-  const existing = await prisma.user.findUnique({ where: { username: input.username } });
-  if (existing) {
-    throw new BadRequestError('Username already taken');
-  }
-
   const passwordHash = await hashPassword(input.password);
-  const user = await prisma.user.create({
-    data: {
-      username: input.username,
-      displayName: input.displayName,
-      passwordHash,
-    },
-    select: { id: true, username: true, displayName: true, avatarUrl: true, createdAt: true },
-  });
 
-  const token = signToken({ sub: user.id, username: user.username });
-  return { user, token };
+  try {
+    const user = await prisma.user.create({
+      data: {
+        username: input.username,
+        displayName: input.displayName,
+        passwordHash,
+      },
+      select: { id: true, username: true, displayName: true, avatarUrl: true, createdAt: true },
+    });
+
+    const token = signToken({ sub: user.id, username: user.username });
+    return { user, token };
+  } catch (err) {
+    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
+      throw new BadRequestError('Username already taken');
+    }
+    throw err;
+  }
 }
 
 export async function login(input: LoginInput) {
@@ -64,7 +68,7 @@ export async function getMe(userId: string) {
     select: { id: true, username: true, displayName: true, avatarUrl: true, status: true, createdAt: true },
   });
   if (!user) {
-    throw new UnauthorizedError('User not found');
+    throw new NotFoundError('User not found');
   }
   return user;
 }

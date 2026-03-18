@@ -13,6 +13,7 @@ router.get('/my', serverController.getUserServers);
 router.post('/join', validate(joinServerSchema), serverController.join);
 router.get('/:serverId', serverController.get);
 router.delete('/:serverId', serverController.remove);
+router.post('/:serverId/leave', serverController.leaveServer);
 router.get('/:serverId/members', serverController.getMembers);
 router.get('/:serverId/invite', serverController.getInviteCode);
 

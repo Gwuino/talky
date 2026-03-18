@@ -107,3 +107,16 @@ export async function getInviteCode(serverId: string, userId: string) {
   if (!server) throw new NotFoundError('Server not found');
   return server.inviteCode;
 }
+
+export async function leaveServer(serverId: string, userId: string) {
+  const server = await prisma.server.findUnique({ where: { id: serverId } });
+  if (!server) throw new NotFoundError('Server not found');
+  if (server.ownerId === userId) throw new BadRequestError('Server owner cannot leave. Transfer ownership or delete the server.');
+
+  const member = await prisma.serverMember.findUnique({
+    where: { userId_serverId: { userId, serverId } },
+  });
+  if (!member) throw new BadRequestError('You are not a member of this server');
+
+  await prisma.serverMember.delete({ where: { id: member.id } });
+}

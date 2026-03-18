@@ -1,3 +1,4 @@
+import { Prisma } from '@prisma/client';
 import prisma from '../config/database';
 import { ForbiddenError, NotFoundError } from '../utils/errors';
 
@@ -10,7 +11,7 @@ export async function getMessages(channelId: string, userId: string, cursor?: st
   });
   if (!member) throw new ForbiddenError('You are not a member of this server');
 
-  const where: any = { channelId };
+  const where: Prisma.MessageWhereInput = { channelId };
   if (cursor) {
     const cursorMessage = await prisma.message.findUnique({ where: { id: cursor } });
     if (cursorMessage) {
@@ -21,15 +22,18 @@ export async function getMessages(channelId: string, userId: string, cursor?: st
   const messages = await prisma.message.findMany({
     where,
     orderBy: { createdAt: 'desc' },
-    take: limit,
+    take: limit + 1,
     include: {
       user: { select: { id: true, username: true, displayName: true, avatarUrl: true } },
     },
   });
 
+  const hasMore = messages.length > limit;
+  if (hasMore) messages.pop();
+
   return {
     messages: messages.reverse(),
-    hasMore: messages.length === limit,
+    hasMore,
   };
 }
 

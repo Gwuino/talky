@@ -17,6 +17,9 @@ export default function MessageInput({ onSend, onTypingStart, onTypingStop, plac
 
   useEffect(() => {
     textareaRef.current?.focus();
+    return () => {
+      if (typingTimeout.current) clearTimeout(typingTimeout.current);
+    };
   }, []);
 
   const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -71,6 +74,7 @@ export default function MessageInput({ onSend, onTypingStart, onTypingStop, plac
           onClick={handleSend}
           disabled={!content.trim()}
           className="text-text-muted hover:text-accent disabled:opacity-30 transition-colors shrink-0 pb-0.5"
+          aria-label="Send message"
         >
           <Send size={20} />
         </button>

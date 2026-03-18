@@ -30,21 +30,32 @@ export const useDMStore = create<DMState>((set, get) => ({
 
   fetchMessages: async (conversationId) => {
     set({ isLoading: true, messages: [], hasMore: true });
-    const { data } = await api.get(`/dm/conversations/${conversationId}/messages?limit=50`);
-    set({ messages: data.messages, hasMore: data.hasMore, isLoading: false });
+    try {
+      const { data } = await api.get(`/dm/conversations/${conversationId}/messages?limit=50`);
+      set({ messages: data.messages, hasMore: data.hasMore });
+    } catch {
+      // handled by axios interceptor
+    } finally {
+      set({ isLoading: false });
+    }
   },
 
   loadMore: async (conversationId) => {
     const { messages, hasMore, isLoading } = get();
     if (!hasMore || isLoading || messages.length === 0) return;
     set({ isLoading: true });
-    const cursor = messages[0].id;
-    const { data } = await api.get(`/dm/conversations/${conversationId}/messages?cursor=${cursor}&limit=50`);
-    set((s) => ({
-      messages: [...data.messages, ...s.messages],
-      hasMore: data.hasMore,
-      isLoading: false,
-    }));
+    try {
+      const cursor = messages[0].id;
+      const { data } = await api.get(`/dm/conversations/${conversationId}/messages?cursor=${cursor}&limit=50`);
+      set((s) => ({
+        messages: [...data.messages, ...s.messages],
+        hasMore: data.hasMore,
+      }));
+    } catch {
+      // silently fail
+    } finally {
+      set({ isLoading: false });
+    }
   },
 
   addMessage: (message) => {

@@ -281,11 +281,13 @@ export function useWebRTC({ channelId, onRemoteStream, onRemoteStreamRemoved }: 
     stopMedia();
   }, [stopMedia]);
 
-  // Cleanup on unmount
+  // Cleanup on unmount: close peers AND stop media tracks
   useEffect(() => {
     return () => {
       peersRef.current.forEach(({ pc }) => pc.close());
       peersRef.current.clear();
+      localStreamRef.current?.getTracks().forEach((track) => track.stop());
+      localStreamRef.current = null;
     };
   }, []);
 

@@ -1,52 +1,45 @@
-import { Response, NextFunction } from 'express';
+import { Response } from 'express';
 import { AuthRequest } from '../middleware/auth';
 import * as serverService from '../services/server.service';
+import { asyncHandler } from '../utils/asyncHandler';
+import { getAuthUserId } from '../utils/getAuthUserId';
 
-export async function create(req: AuthRequest, res: Response, next: NextFunction) {
-  try {
-    const server = await serverService.createServer(req.userId!, req.body.name);
-    res.status(201).json(server);
-  } catch (err) { next(err); }
-}
+export const create = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const server = await serverService.createServer(getAuthUserId(req), req.body.name);
+  res.status(201).json(server);
+});
 
-export async function get(req: AuthRequest, res: Response, next: NextFunction) {
-  try {
-    const server = await serverService.getServer(req.params.serverId as string, req.userId!);
-    res.json(server);
-  } catch (err) { next(err); }
-}
+export const get = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const server = await serverService.getServer(req.params.serverId as string, getAuthUserId(req));
+  res.json(server);
+});
 
-export async function getUserServers(req: AuthRequest, res: Response, next: NextFunction) {
-  try {
-    const servers = await serverService.getUserServers(req.userId!);
-    res.json(servers);
-  } catch (err) { next(err); }
-}
+export const getUserServers = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const servers = await serverService.getUserServers(getAuthUserId(req));
+  res.json(servers);
+});
 
-export async function join(req: AuthRequest, res: Response, next: NextFunction) {
-  try {
-    const server = await serverService.joinByInvite(req.userId!, req.body.inviteCode);
-    res.json(server);
-  } catch (err) { next(err); }
-}
+export const join = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const server = await serverService.joinByInvite(getAuthUserId(req), req.body.inviteCode);
+  res.json(server);
+});
 
-export async function remove(req: AuthRequest, res: Response, next: NextFunction) {
-  try {
-    await serverService.deleteServer(req.params.serverId as string, req.userId!);
-    res.status(204).send();
-  } catch (err) { next(err); }
-}
+export const remove = asyncHandler(async (req: AuthRequest, res: Response) => {
+  await serverService.deleteServer(req.params.serverId as string, getAuthUserId(req));
+  res.status(204).send();
+});
 
-export async function getMembers(req: AuthRequest, res: Response, next: NextFunction) {
-  try {
-    const members = await serverService.getMembers(req.params.serverId as string, req.userId!);
-    res.json(members);
-  } catch (err) { next(err); }
-}
+export const getMembers = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const members = await serverService.getMembers(req.params.serverId as string, getAuthUserId(req));
+  res.json(members);
+});
 
-export async function getInviteCode(req: AuthRequest, res: Response, next: NextFunction) {
-  try {
-    const inviteCode = await serverService.getInviteCode(req.params.serverId as string, req.userId!);
-    res.json({ inviteCode });
-  } catch (err) { next(err); }
-}
+export const getInviteCode = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const inviteCode = await serverService.getInviteCode(req.params.serverId as string, getAuthUserId(req));
+  res.json({ inviteCode });
+});
+
+export const leaveServer = asyncHandler(async (req: AuthRequest, res: Response) => {
+  await serverService.leaveServer(req.params.serverId as string, getAuthUserId(req));
+  res.status(204).send();
+});

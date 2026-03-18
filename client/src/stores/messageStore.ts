@@ -36,13 +36,18 @@ export const useMessageStore = create<MessageState>((set, get) => ({
     const { messages, hasMore, isLoading } = get();
     if (!hasMore || isLoading || messages.length === 0) return;
     set({ isLoading: true });
-    const cursor = messages[0].id;
-    const { data } = await api.get(`/channels/${channelId}/messages?cursor=${cursor}&limit=50`);
-    set((state) => ({
-      messages: [...data.messages, ...state.messages],
-      hasMore: data.hasMore,
-      isLoading: false,
-    }));
+    try {
+      const cursor = messages[0].id;
+      const { data } = await api.get(`/channels/${channelId}/messages?cursor=${cursor}&limit=50`);
+      set((state) => ({
+        messages: [...data.messages, ...state.messages],
+        hasMore: data.hasMore,
+      }));
+    } catch {
+      // silently fail, user can retry by scrolling up again
+    } finally {
+      set({ isLoading: false });
+    }
   },
 
   addMessage: (message) => {

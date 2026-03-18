@@ -5,8 +5,24 @@ const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:3001'
 
 let socket: Socket | null = null;
 
+// Track rooms to rejoin on reconnect
+const activeRooms = new Set<{ event: string; data: Record<string, string> }>();
+
 export function getSocket(): Socket | null {
   return socket;
+}
+
+export function trackRoom(event: string, data: Record<string, string>) {
+  activeRooms.add({ event, data });
+}
+
+export function untrackRoom(event: string, key: string, value: string) {
+  for (const room of activeRooms) {
+    if (room.event === event && room.data[key] === value) {
+      activeRooms.delete(room);
+      break;
+    }
+  }
 }
 
 export function connectSocket(token: string): Socket {
@@ -23,22 +39,27 @@ export function connectSocket(token: string): Socket {
 
   socket.on('connect', () => {
     console.log('Socket connected');
+    // Re-subscribe to all tracked rooms on reconnect
+    if (activeRooms.size > 0) {
+      activeRooms.forEach((room) => {
+        socket?.emit(room.event, room.data);
+      });
+    }
   });
 
   socket.on('disconnect', (reason) => {
     if (reason === 'io server disconnect') {
-      // Server forced disconnect, attempt reconnect
       socket?.connect();
     }
     console.log('Socket disconnected:', reason);
   });
 
-  socket.on('reconnect', (attemptNumber) => {
+  socket.on('reconnect', (attemptNumber: number) => {
     console.log('Socket reconnected after', attemptNumber, 'attempts');
-    toast.success('Reconnected');
+    toast.success('Reconnected', { id: 'reconnect' });
   });
 
-  socket.on('reconnect_attempt', (attemptNumber) => {
+  socket.on('reconnect_attempt', (attemptNumber: number) => {
     if (attemptNumber === 1) {
       toast.loading('Reconnecting...', { id: 'reconnect' });
     }
@@ -60,4 +81,5 @@ export function disconnectSocket() {
     socket.disconnect();
     socket = null;
   }
+  activeRooms.clear();
 }

@@ -159,7 +159,7 @@ export default function CallOverlay() {
               'w-12 h-12 rounded-full flex items-center justify-center transition-colors',
               isMuted ? 'bg-danger text-white' : 'bg-bg-active hover:bg-bg-hover text-text-primary'
             )}
-            title={isMuted ? 'Unmute' : 'Mute'}
+            aria-label={isMuted ? 'Unmute' : 'Mute'}
           >
             {isMuted ? <MicOff size={22} /> : <Mic size={22} />}
           </button>
@@ -170,7 +170,7 @@ export default function CallOverlay() {
               'w-12 h-12 rounded-full flex items-center justify-center transition-colors',
               isVideoOn ? 'bg-accent text-white' : 'bg-bg-active hover:bg-bg-hover text-text-primary'
             )}
-            title={isVideoOn ? 'Turn off camera' : 'Turn on camera'}
+            aria-label={isVideoOn ? 'Turn off camera' : 'Turn on camera'}
           >
             {isVideoOn ? <Video size={22} /> : <VideoOff size={22} />}
           </button>
@@ -181,7 +181,7 @@ export default function CallOverlay() {
               'w-12 h-12 rounded-full flex items-center justify-center transition-colors',
               isScreenSharing ? 'bg-accent text-white' : 'bg-bg-active hover:bg-bg-hover text-text-primary'
             )}
-            title={isScreenSharing ? 'Stop sharing' : 'Share screen'}
+            aria-label={isScreenSharing ? 'Stop sharing' : 'Share screen'}
           >
             {isScreenSharing ? <MonitorOff size={22} /> : <Monitor size={22} />}
           </button>
@@ -189,7 +189,7 @@ export default function CallOverlay() {
           <button
             onClick={endCall}
             className="w-14 h-14 rounded-full bg-danger text-white flex items-center justify-center hover:bg-red-700 transition-colors"
-            title="End call"
+            aria-label="End call"
           >
             <PhoneOff size={24} />
           </button>

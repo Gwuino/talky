@@ -37,7 +37,7 @@ export default function VoiceStatusBar() {
         <button
           onClick={handleDisconnect}
           className="p-1.5 rounded hover:bg-bg-hover text-text-secondary hover:text-danger"
-          title="Disconnect"
+          aria-label="Disconnect from voice"
         >
           <PhoneOff size={18} />
         </button>

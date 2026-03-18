@@ -8,6 +8,7 @@ import { presenceHandler } from './handlers/presence.handler';
 import { dmHandler } from './handlers/dm.handler';
 import { voiceHandler } from './handlers/voice.handler';
 import { signalingHandler } from './handlers/signaling.handler';
+import { EVENTS } from './events';
 
 // Track online users: userId -> Set<socketId>
 export const onlineUsers = new Map<string, Set<string>>();
@@ -19,12 +20,25 @@ export function getIO(): Server {
   return ioInstance;
 }
 
+/** Get all socket instances for a specific user (O(1) lookup) */
+export function getSocketsForUser(io: Server, userId: string): Socket[] {
+  const socketIds = onlineUsers.get(userId);
+  if (!socketIds) return [];
+  const sockets: Socket[] = [];
+  for (const sid of socketIds) {
+    const s = io.sockets.sockets.get(sid);
+    if (s) sockets.push(s);
+  }
+  return sockets;
+}
+
 export function setupSocket(httpServer: HttpServer) {
   const io = new Server(httpServer, {
     cors: {
       origin: env.CLIENT_URL,
       methods: ['GET', 'POST'],
     },
+    maxHttpBufferSize: 1e6, // 1MB payload limit
   });
 
   // Auth middleware
@@ -59,8 +73,8 @@ export function setupSocket(httpServer: HttpServer) {
       data: { status: 'ONLINE' },
     }).catch(() => {});
 
-    // Broadcast online status to all connected users
-    socket.broadcast.emit('user:online', { userId, status: 'ONLINE' });
+    // Broadcast online status
+    socket.broadcast.emit(EVENTS.USER_ONLINE, { userId, status: 'ONLINE' });
 
     // Register handlers
     chatHandler(io, socket);
@@ -82,7 +96,7 @@ export function setupSocket(httpServer: HttpServer) {
             where: { id: userId },
             data: { status: 'OFFLINE' },
           }).catch(() => {});
-          socket.broadcast.emit('user:offline', { userId });
+          socket.broadcast.emit(EVENTS.USER_OFFLINE, { userId });
         }
       }
     });

@@ -1,5 +1,6 @@
+import { Prisma } from '@prisma/client';
 import prisma from '../config/database';
-import { ForbiddenError, NotFoundError } from '../utils/errors';
+import { BadRequestError, ForbiddenError, NotFoundError } from '../utils/errors';
 
 export async function getConversations(userId: string) {
   const participations = await prisma.dMParticipant.findMany({
@@ -33,7 +34,7 @@ export async function getConversations(userId: string) {
 
 export async function getOrCreateConversation(userId: string, targetUserId: string) {
   if (userId === targetUserId) {
-    throw new ForbiddenError('Cannot create a conversation with yourself');
+    throw new BadRequestError('Cannot create a conversation with yourself');
   }
 
   const targetUser = await prisma.user.findUnique({ where: { id: targetUserId } });
@@ -58,21 +59,42 @@ export async function getOrCreateConversation(userId: string, targetUserId: stri
 
   if (existing) return existing;
 
-  return prisma.dMConversation.create({
-    data: {
-      participants: {
-        createMany: {
-          data: [{ userId }, { userId: targetUserId }],
+  // Use transaction to prevent duplicate DM conversations
+  return prisma.$transaction(async (tx) => {
+    // Double-check inside transaction
+    const doubleCheck = await tx.dMConversation.findFirst({
+      where: {
+        AND: [
+          { participants: { some: { userId } } },
+          { participants: { some: { userId: targetUserId } } },
+        ],
+      },
+      include: {
+        participants: {
+          include: {
+            user: { select: { id: true, username: true, displayName: true, avatarUrl: true, status: true } },
+          },
         },
       },
-    },
-    include: {
-      participants: {
-        include: {
-          user: { select: { id: true, username: true, displayName: true, avatarUrl: true, status: true } },
+    });
+    if (doubleCheck) return doubleCheck;
+
+    return tx.dMConversation.create({
+      data: {
+        participants: {
+          createMany: {
+            data: [{ userId }, { userId: targetUserId }],
+          },
         },
       },
-    },
+      include: {
+        participants: {
+          include: {
+            user: { select: { id: true, username: true, displayName: true, avatarUrl: true, status: true } },
+          },
+        },
+      },
+    });
   });
 }
 
@@ -82,7 +104,7 @@ export async function getDMMessages(conversationId: string, userId: string, curs
   });
   if (!participant) throw new ForbiddenError('You are not a participant of this conversation');
 
-  const where: any = { conversationId };
+  const where: Prisma.DirectMessageWhereInput = { conversationId };
   if (cursor) {
     const cursorMsg = await prisma.directMessage.findUnique({ where: { id: cursor } });
     if (cursorMsg) {
@@ -93,15 +115,18 @@ export async function getDMMessages(conversationId: string, userId: string, curs
   const messages = await prisma.directMessage.findMany({
     where,
     orderBy: { createdAt: 'desc' },
-    take: limit,
+    take: limit + 1,
     include: {
       sender: { select: { id: true, username: true, displayName: true, avatarUrl: true } },
     },
   });
 
+  const hasMore = messages.length > limit;
+  if (hasMore) messages.pop();
+
   return {
     messages: messages.reverse(),
-    hasMore: messages.length === limit,
+    hasMore,
   };
 }
 

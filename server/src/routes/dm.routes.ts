@@ -1,13 +1,15 @@
 import { Router } from 'express';
 import * as dmController from '../controllers/dm.controller';
 import { authMiddleware } from '../middleware/auth';
+import { validate } from '../middleware/validate';
+import { createConversationSchema } from '../validators/dm.schema';
 
 const router = Router();
 
 router.use(authMiddleware);
 
 router.get('/conversations', dmController.getConversations);
-router.post('/conversations', dmController.createConversation);
+router.post('/conversations', validate(createConversationSchema), dmController.createConversation);
 router.get('/conversations/:conversationId/messages', dmController.getMessages);
 
 export default router;

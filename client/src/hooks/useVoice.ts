@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useRef, useState, useEffect } from 'react';
 import { useVoiceStore } from '@/stores/voiceStore';
 import { getSocket } from '@/lib/socket';
 import { useWebRTC } from './useWebRTC';
@@ -9,6 +9,7 @@ export function useVoice(channelId: string) {
   const { setConnectedChannel, addPeer, removePeer, setLocalStream, reset } = useVoiceStore();
   const [remoteStreams, setRemoteStreams] = useState<Map<string, MediaStream>>(new Map());
   const screenStreamRef = useRef<MediaStream | null>(null);
+  const listenersRef = useRef<{ cleanup: () => void } | null>(null);
 
   const handleRemoteStream = useCallback((userId: string, stream: MediaStream) => {
     setRemoteStreams((prev) => {
@@ -32,6 +33,13 @@ export function useVoice(channelId: string) {
     onRemoteStreamRemoved: handleRemoteStreamRemoved,
   });
 
+  const cleanupListeners = useCallback(() => {
+    if (listenersRef.current) {
+      listenersRef.current.cleanup();
+      listenersRef.current = null;
+    }
+  }, []);
+
   const joinVoice = useCallback(async () => {
     const socket = getSocket();
     if (!socket) return;
@@ -46,8 +54,9 @@ export function useVoice(channelId: string) {
     // Join the voice channel on server
     socket.emit('voice:join', { channelId });
 
-    // Listen for new peers joining - when we get the participants list,
-    // connect to each one
+    // Clean up any existing listeners before attaching new ones
+    cleanupListeners();
+
     const handleParticipants = ({ participants }: { participants: { userId: string; username: string }[] }) => {
       participants.forEach((p) => {
         connectToPeer(p.userId, p.username);
@@ -56,7 +65,6 @@ export function useVoice(channelId: string) {
 
     const handleUserJoined = ({ userId, username }: { userId: string; username: string }) => {
       addPeer({ userId, username, muted: false, deafened: false });
-      // The new user will send us an offer, so we don't need to initiate
     };
 
     const handleUserLeft = ({ userId }: { userId: string }) => {
@@ -67,19 +75,35 @@ export function useVoice(channelId: string) {
     socket.on('voice:participants', handleParticipants);
     socket.on('voice:user-joined', handleUserJoined);
     socket.on('voice:user-left', handleUserLeft);
-  }, [channelId, startMedia, setLocalStream, setConnectedChannel, connectToPeer, addPeer, removePeer, handleRemoteStreamRemoved]);
+
+    listenersRef.current = {
+      cleanup: () => {
+        socket.off('voice:participants', handleParticipants);
+        socket.off('voice:user-joined', handleUserJoined);
+        socket.off('voice:user-left', handleUserLeft);
+      },
+    };
+  }, [channelId, startMedia, setLocalStream, setConnectedChannel, connectToPeer, addPeer, removePeer, handleRemoteStreamRemoved, cleanupListeners]);
 
   const leaveVoice = useCallback(() => {
     const socket = getSocket();
     if (!socket) return;
 
     socket.emit('voice:leave', { channelId });
+    cleanupListeners();
     disconnectAll();
     stopScreenShare(screenStreamRef.current);
     screenStreamRef.current = null;
     setRemoteStreams(new Map());
     reset();
-  }, [channelId, disconnectAll, stopScreenShare, reset]);
+  }, [channelId, disconnectAll, stopScreenShare, reset, cleanupListeners]);
+
+  // Clean up listeners on unmount
+  useEffect(() => {
+    return () => {
+      cleanupListeners();
+    };
+  }, [cleanupListeners]);
 
   const handleToggleMute = useCallback((muted: boolean) => {
     toggleAudio(!muted); // toggleAudio expects enabled, not muted

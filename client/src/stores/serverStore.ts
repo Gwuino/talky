@@ -30,13 +30,18 @@ export const useServerStore = create<ServerState>((set, get) => ({
 
   fetchServer: async (serverId) => {
     set({ isLoading: true });
-    const { data } = await api.get(`/servers/${serverId}`);
-    set({
-      activeServer: data,
-      channels: data.channels || [],
-      members: data.members || [],
-      isLoading: false,
-    });
+    try {
+      const { data } = await api.get(`/servers/${serverId}`);
+      set({
+        activeServer: data,
+        channels: data.channels || [],
+        members: data.members || [],
+      });
+    } catch {
+      // handled by axios interceptor (401 -> redirect)
+    } finally {
+      set({ isLoading: false });
+    }
   },
 
   createServer: async (name) => {

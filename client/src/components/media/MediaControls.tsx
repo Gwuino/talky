@@ -31,7 +31,6 @@ export default function MediaControls({
     const newMuted = !isMuted;
     setMuted(newMuted);
     socket?.emit('voice:mute', { channelId, muted: newMuted });
-    // Actually toggle the audio track
     onToggleMute?.(newMuted);
   };
 
@@ -39,11 +38,9 @@ export default function MediaControls({
     const newDeafened = !isDeafened;
     setDeafened(newDeafened);
     socket?.emit('voice:deafen', { channelId, deafened: newDeafened });
-    // When deafening, also mute the mic
     if (newDeafened) {
       onToggleMute?.(true);
     } else if (!isMuted) {
-      // When undeafening, unmute if wasn't manually muted
       onToggleMute?.(false);
     }
   };
@@ -85,7 +82,7 @@ export default function MediaControls({
           'w-12 h-12 rounded-full flex items-center justify-center transition-colors',
           isMuted ? 'bg-danger text-white' : 'bg-bg-active hover:bg-bg-hover text-text-primary'
         )}
-        title={isMuted ? 'Unmute' : 'Mute'}
+        aria-label={isMuted ? 'Unmute' : 'Mute'}
       >
         {isMuted ? <MicOff size={22} /> : <Mic size={22} />}
       </button>
@@ -96,7 +93,7 @@ export default function MediaControls({
           'w-12 h-12 rounded-full flex items-center justify-center transition-colors',
           isDeafened ? 'bg-danger text-white' : 'bg-bg-active hover:bg-bg-hover text-text-primary'
         )}
-        title={isDeafened ? 'Undeafen' : 'Deafen'}
+        aria-label={isDeafened ? 'Undeafen' : 'Deafen'}
       >
         {isDeafened ? <HeadphoneOff size={22} /> : <Headphones size={22} />}
       </button>
@@ -108,7 +105,7 @@ export default function MediaControls({
             'w-12 h-12 rounded-full flex items-center justify-center transition-colors',
             isVideoOn ? 'bg-accent text-white' : 'bg-bg-active hover:bg-bg-hover text-text-primary'
           )}
-          title={isVideoOn ? 'Turn off camera' : 'Turn on camera'}
+          aria-label={isVideoOn ? 'Turn off camera' : 'Turn on camera'}
         >
           {isVideoOn ? <Video size={22} /> : <VideoOff size={22} />}
         </button>
@@ -121,7 +118,7 @@ export default function MediaControls({
             'w-12 h-12 rounded-full flex items-center justify-center transition-colors',
             isScreenSharing ? 'bg-accent text-white' : 'bg-bg-active hover:bg-bg-hover text-text-primary'
           )}
-          title={isScreenSharing ? 'Stop sharing' : 'Share screen'}
+          aria-label={isScreenSharing ? 'Stop sharing' : 'Share screen'}
         >
           <Monitor size={22} />
         </button>
@@ -130,7 +127,7 @@ export default function MediaControls({
       <button
         onClick={disconnect}
         className="w-12 h-12 rounded-full bg-danger flex items-center justify-center text-white hover:bg-red-700 transition-colors"
-        title="Disconnect"
+        aria-label="Disconnect"
       >
         <PhoneOff size={22} />
       </button>

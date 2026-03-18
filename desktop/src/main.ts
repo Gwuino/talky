@@ -12,7 +12,7 @@ let tray: Tray | null = null;
 let isQuitting = false;
 
 const DEV_URL = 'http://localhost:3000';
-const PROD_URL = process.env.TALKY_URL || 'http://148.253.211.224:3000';
+const PROD_URL = process.env.TALKY_URL || 'https://talky.app';
 const isProd = !process.env.ELECTRON_DEV;
 
 function createWindow() {

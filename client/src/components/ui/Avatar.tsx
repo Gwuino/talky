@@ -24,7 +24,7 @@ export default function Avatar({ src, name, size = 'md', status, className }: Av
 
   return (
     <div className={cn('relative inline-flex shrink-0', className)}>
-      {src ? (
+      {src && /^(https?:\/\/|data:image\/)/.test(src) ? (
         <img src={src} alt={name} className={cn('rounded-full object-cover', sizeMap[size])} />
       ) : (
         <div

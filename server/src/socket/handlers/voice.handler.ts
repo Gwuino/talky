@@ -1,5 +1,7 @@
 import { Server, Socket } from 'socket.io';
 import prisma from '../../config/database';
+import { EVENTS } from '../events';
+import { validateSocket, channelIdSchema, voiceMuteSchema, voiceDeafenSchema } from '../validation';
 
 // Track voice channel participants: channelId -> Map<userId, { socketId, username, muted, deafened }>
 export const voiceChannels = new Map<string, Map<string, { socketId: string; username: string; muted: boolean; deafened: boolean }>>();
@@ -21,13 +23,22 @@ export function voiceHandler(io: Server, socket: Socket) {
   const userId = socket.data.userId;
   const username = socket.data.username;
 
-  socket.on('voice:join', async ({ channelId }: { channelId: string }) => {
-    // Look up serverId for this channel if we don't have it cached
+  socket.on(EVENTS.VOICE_JOIN, validateSocket(channelIdSchema, socket, async ({ channelId }) => {
+    // Verify membership before joining voice channel
+    const channel = await prisma.channel.findUnique({ where: { id: channelId } });
+    if (!channel) return;
+
+    // Cache channelId -> serverId mapping
     if (!channelServerMap.has(channelId)) {
-      try {
-        const channel = await prisma.channel.findUnique({ where: { id: channelId }, select: { serverId: true } });
-        if (channel?.serverId) channelServerMap.set(channelId, channel.serverId);
-      } catch {}
+      channelServerMap.set(channelId, channel.serverId);
+    }
+
+    const member = await prisma.serverMember.findUnique({
+      where: { userId_serverId: { userId, serverId: channel.serverId } },
+    });
+    if (!member) {
+      socket.emit(EVENTS.ERROR, { message: 'Not a member of this server' });
+      return;
     }
 
     // Leave any existing voice channel
@@ -35,7 +46,7 @@ export function voiceHandler(io: Server, socket: Socket) {
       if (participants.has(userId)) {
         participants.delete(userId);
         socket.leave(`voice:${chId}`);
-        io.to(`voice:${chId}`).emit('voice:user-left', { channelId: chId, userId });
+        io.to(`voice:${chId}`).emit(EVENTS.VOICE_USER_LEFT, { channelId: chId, userId });
         if (participants.size === 0) voiceChannels.delete(chId);
         broadcastChannelUsers(io, chId);
       }
@@ -57,10 +68,10 @@ export function voiceHandler(io: Server, socket: Socket) {
     const participants = Array.from(voiceChannels.get(channelId)!.entries())
       .filter(([uid]) => uid !== userId)
       .map(([uid, state]) => ({ userId: uid, username: state.username, socketId: state.socketId, muted: state.muted, deafened: state.deafened }));
-    socket.emit('voice:participants', { channelId, participants });
+    socket.emit(EVENTS.VOICE_PARTICIPANTS, { channelId, participants });
 
     // Notify others in the voice room
-    socket.to(`voice:${channelId}`).emit('voice:user-joined', {
+    socket.to(`voice:${channelId}`).emit(EVENTS.VOICE_USER_JOINED, {
       channelId,
       userId,
       username,
@@ -68,7 +79,7 @@ export function voiceHandler(io: Server, socket: Socket) {
 
     // Broadcast updated participant list to the server room (for sidebar)
     broadcastChannelUsers(io, channelId);
-  });
+  }));
 
   // Return current voice users for a list of channels (for sidebar initial load)
   socket.on('voice:get-channel-users', ({ channelIds }: { channelIds: string[] }, callback?: (data: Record<string, { userId: string; username: string }[]>) => void) => {
@@ -82,38 +93,38 @@ export function voiceHandler(io: Server, socket: Socket) {
     if (callback) callback(result);
   });
 
-  socket.on('voice:leave', ({ channelId }: { channelId: string }) => {
+  socket.on(EVENTS.VOICE_LEAVE, validateSocket(channelIdSchema, socket, ({ channelId }) => {
     leaveVoice(io, socket, channelId, userId);
-  });
+  }));
 
-  socket.on('voice:mute', ({ channelId, muted }: { channelId: string; muted: boolean }) => {
+  socket.on(EVENTS.VOICE_MUTE, validateSocket(voiceMuteSchema, socket, ({ channelId, muted }) => {
     const participants = voiceChannels.get(channelId);
     if (participants?.has(userId)) {
       const state = participants.get(userId)!;
       state.muted = muted;
-      io.to(`voice:${channelId}`).emit('voice:state-update', {
+      io.to(`voice:${channelId}`).emit(EVENTS.VOICE_STATE_UPDATE, {
         channelId,
         userId,
         muted: state.muted,
         deafened: state.deafened,
       });
     }
-  });
+  }));
 
-  socket.on('voice:deafen', ({ channelId, deafened }: { channelId: string; deafened: boolean }) => {
+  socket.on(EVENTS.VOICE_DEAFEN, validateSocket(voiceDeafenSchema, socket, ({ channelId, deafened }) => {
     const participants = voiceChannels.get(channelId);
     if (participants?.has(userId)) {
       const state = participants.get(userId)!;
       state.deafened = deafened;
       if (deafened) state.muted = true;
-      io.to(`voice:${channelId}`).emit('voice:state-update', {
+      io.to(`voice:${channelId}`).emit(EVENTS.VOICE_STATE_UPDATE, {
         channelId,
         userId,
         muted: state.muted,
         deafened: state.deafened,
       });
     }
-  });
+  }));
 
   // Clean up on disconnect
   socket.on('disconnect', () => {
@@ -130,7 +141,7 @@ function leaveVoice(io: Server, socket: Socket, channelId: string, userId: strin
   if (participants) {
     participants.delete(userId);
     socket.leave(`voice:${channelId}`);
-    io.to(`voice:${channelId}`).emit('voice:user-left', { channelId, userId });
+    io.to(`voice:${channelId}`).emit(EVENTS.VOICE_USER_LEFT, { channelId, userId });
     if (participants.size === 0) voiceChannels.delete(channelId);
     broadcastChannelUsers(io, channelId);
   }
